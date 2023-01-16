@@ -1,5 +1,5 @@
 ﻿using System;
-namespace StudentApp.Models;
+namespace StudentApp.Data.Models;
 
 public class BaseClass
 {

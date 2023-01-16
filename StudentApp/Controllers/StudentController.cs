@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using StudentApp.Models;
+using StudentApp.Data;
+using StudentApp.Data.Models;
 
 namespace StudentApp.Controllers;
 
@@ -11,68 +12,49 @@ namespace StudentApp.Controllers;
 [Route("api/[controller]")]
 public class StudentController : ControllerBase
 {
-    // Temp database
-    static List<Student> Students = new()
-    {
-       new Student
-       {
-           Id = 1,
-           DateCreated = DateTime.Today,
-           DateUpdted = DateTime.Today,
-           DateOfBirth = DateTime.Today.AddYears(-70),
-           FirstName = "Bill",
-           LastName = "Gates",
-           GraduationYear = 1990,
-       },
-       new Student
-       {
-           Id = 2,
-           DateCreated = DateTime.Today,
-           DateUpdted = DateTime.Today,
-           DateOfBirth = DateTime.Today.AddYears(-50),
-           FirstName = "Elon",
-           LastName = "Musk",
-           GraduationYear = 1990,
-       }
-    };
+    readonly ApplicationDbContext _db;
+    public StudentController(ApplicationDbContext db) => _db = db;
 
 
     [HttpPost]
-    public IActionResult Post([FromBody] Student student)
+    public async Task<IActionResult> Post([FromBody] Student student)
     {
-        student.Id = Students.Count + 1;
         student.DateCreated = DateTime.Today;
+        await _db.Students.AddAsync(student);
 
-        Students.Add(student);
         return Ok("Student added");
     }
 
     [HttpGet("{id}")]
-    public IActionResult GetById(int id) => Ok(Students.FirstOrDefault(s => s.Id == id)!);
+    public IActionResult GetById(int id) => Ok(_db.Students.FirstOrDefault(s => s.Id == id)!);
 
     [HttpPut]
-    public IActionResult Put([FromBody] Student student)
+    public async Task<IActionResult> Put([FromBody] Student student)
     {
-        if (student.Id > Students.Count)
+        var _student = _db.Students.FirstOrDefault(s => s.Id == student.Id);
+        if (_student == default)
             return NotFound("Student not found!");
 
         if (student.DateUpdted != student.DateCreated)
             return NotFound("Student can't be updated");
 
         // Update
-        student.DateUpdted = DateTime.Today;
-        Students[student.Id - 1] = student;
+        _student.DateUpdted = DateTime.Today;
+        _db.Students.Update(_student);
+        await _db.SaveChangesAsync();
+
         return Ok("Student updated");
     }
 
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var student = Students.FirstOrDefault(s => s.Id == id);
+        var student = _db.Students.FirstOrDefault(s => s.Id == id);
         if (student == default)
             return NotFound("Student not found");
 
-        Students.Remove(student);
-        return Ok($"Students left: {Students.Count}");
+        _db.Students.Remove(student);
+        await _db.SaveChangesAsync();
+        return Ok($"Students left: {_db.Students.Count()}");
     }
 }
